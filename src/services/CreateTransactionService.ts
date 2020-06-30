@@ -1,7 +1,8 @@
-import { getCustomRepository } from 'typeorm';
+import { getCustomRepository, getRepository } from 'typeorm';
 import AppError from '../errors/AppError';
 import TransactionsRepository from '../repositories/TransactionsRepository';
 import Transaction from '../models/Transaction';
+import Category from '../models/Category';
 
 interface Request {
   title: string;
@@ -18,6 +19,21 @@ class CreateTransactionService {
     category,
   }: Request): Promise<Transaction> {
     const transactionsRepository = getCustomRepository(TransactionsRepository);
+    const categoryRepository = getRepository(Category);
+
+    let transactionCategory = await categoryRepository.findOne({
+      where: {
+        title: category,
+      },
+    });
+
+    if (!transactionCategory) {
+      transactionCategory = await categoryRepository.create({
+        title: category,
+      });
+    }
+
+    await categoryRepository.save(transactionCategory);
 
     if (!['income', 'outcome'].includes(type)) {
       throw new AppError('Type is invalid');
@@ -32,6 +48,7 @@ class CreateTransactionService {
       type,
       value,
       title,
+      category: transactionCategory,
     });
 
     await transactionsRepository.save(transaction);
